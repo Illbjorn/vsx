@@ -1,0 +1,97 @@
+version: '3'
+
+vars:
+  ##############################################################################
+  # Version Info
+  ver_path: .github/VERSION
+  ver:
+    sh: cat '{{ .ver_path }}'
+  tag: 'v{{ .ver }}'
+
+  ##############################################################################
+  # Repository Info
+  repo_owner: illbjorn
+  repo_name: basicli
+
+# dotenv: [.env]
+interval: 250ms
+
+tasks:
+  version:
+    aliases: [v]
+    desc: Prints the current repository version from '{{ .ver_path }}' to the console.
+    silent: true
+    interactive: true
+    cmd: echo '{{ .ver }}'
+
+  create-git-tag:
+    internal: true
+    cmd: git tag '{{ .tag }}'
+
+  push-tag-ref:
+    internal: true
+    cmd: git push origin '{{ .tag }}'
+
+  update-go-module-index:
+    internal: true
+    cmd: GOPROXY=proxy.golang.org go list -m '{{ .pkg_name }}@{{ .tag }}'
+
+  release:
+    aliases: [r]
+    desc: Creates a Git tag from '{{ .ver_path }}' and pushes to that ref.
+    vars:
+      tag: 'v{{ .ver }}'
+    cmds:
+      - task: create-git-tag
+        vars:
+          tag: '{{ .tag }}'
+      - task: push-tag-ref
+        vars:
+          tag: '{{ .tag }}'
+
+  # Task: Bump
+  #
+  # >> Examples
+  #     $ task bump
+  #     Incrementing version ['0.1.4']=>['0.1.5'].
+  #
+  #     $ task bump s=minor
+  #     Incrementing version ['0.1.4']=>['0.2.0'].
+  #
+  #     $ task bump s=major
+  #     Incrementing version ['0.1.4']=>['1.0.0'].
+  #
+  bump:
+    aliases: [b]
+    desc: Bumps the provided segment of the semver string at {{ .ver_path }}.
+    vars:
+      segment: '{{ if .s }}{{ .s }}{{ else }}patch{{ end }}'
+    cmd: ver_path='{{ .ver_path }}' segment='{{ .segment }}' .github/scripts/bump.sh
+
+  # Task: Test
+  #
+  # >> Examples
+  #     $ task t
+  #     ok      github.com/illbjorn/echo        0.101s
+  #
+  #     $ task t debug=true
+  #     === RUN   TestLog
+  #     Hello, World!
+  #     Hello, World!
+  #     Hello, World!
+  #     Hello, World!
+  #     Hello, World!
+  #     --- PASS: TestLog (0.00s)
+  #     PASS
+  #     ok      github.com/illbjorn/echo        0.108s
+  test:
+    aliases: [t]
+    desc: Executes all Go unit tests.
+    vars:
+      flags: '{{ if .debug }}-v -gcflags="-N -l"{{ end }}'
+    cmd: go test -count=1 {{ .flags }} .
+
+  lint:
+    aliases: [l]
+    desc: Performs linting via Golangci-lint using the default config.
+    cmd: golangci-lint run
