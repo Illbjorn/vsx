@@ -23,24 +23,24 @@ func ParseArgs() Args {
 	// Define flags
 	//
 	// --gallery-host
-	const envGalleryHost = "VSIX_GALLERY_HOST"
+	const envGalleryHost = "VSX_GALLERY_HOST"
 	flag.StringVar(&args.GalleryHost, "gallery-host", os.Getenv(envGalleryHost), "")
 
 	// --gallery-scheme
-	const envGalleryScheme = "VSIX_GALLERY_SCHEME"
+	const envGalleryScheme = "VSX_GALLERY_SCHEME"
 	flag.StringVar(&args.GalleryScheme, "gallery-scheme", os.Getenv(envGalleryScheme), "")
 
 	// --extension-dir, -xd
-	const envExtensionDir = "VSIX_EXTENSION_DIR"
+	const envExtensionDir = "VSX_EXTENSION_DIR"
 	flag.StringVar(&args.ExtensionDir, "extension-dir", os.Getenv(envExtensionDir), "")
 	flag.StringVar(&args.ExtensionDir, "xd", os.Getenv(envExtensionDir), "")
 
 	// --os
-	const envOS = "VSIX_OS"
+	const envOS = "VSX_OS"
 	flag.StringVar(&args.OS, "os", os.Getenv(envOS), "")
 
 	// --arch, -a
-	const envArch = "VSIX_ARCH"
+	const envArch = "VSX_ARCH"
 	flag.StringVar(&args.Arch, "arch", os.Getenv(envArch), "")
 	flag.StringVar(&args.Arch, "a", os.Getenv(envArch), "")
 
