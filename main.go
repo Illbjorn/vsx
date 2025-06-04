@@ -82,7 +82,7 @@ func main() {
 		)
 
 		// Define the extension's subdirectory name (ex: `~/.vscode/extensions/[here]`)
-		extDirName := fmt.Sprintf("%s-%s.%s", publisher, extensionID, args.Version)
+		extDirName := fmt.Sprintf("%s-%s-%s", publisher, extensionID, args.Version)
 
 		// Look for a `.vscode-oss` or `.vscode` directory in the user's home path
 		extDirOSS := filepath.Join(home, ".vscode-oss")
