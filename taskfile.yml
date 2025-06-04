@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 vars:
   ##############################################################################
@@ -6,14 +6,13 @@ vars:
   ver_path: .github/VERSION
   ver:
     sh: cat '{{ .ver_path }}'
-  tag: 'v{{ .ver }}'
+  tag: "v{{ .ver }}"
 
   ##############################################################################
   # Repository Info
   repo_owner: illbjorn
-  repo_name: basicli
+  repo_name: vsx
 
-# dotenv: [.env]
 interval: 250ms
 
 tasks:
@@ -34,20 +33,20 @@ tasks:
 
   update-go-module-index:
     internal: true
-    cmd: GOPROXY=proxy.golang.org go list -m '{{ .pkg_name }}@{{ .tag }}'
+    cmd: GOPROXY=proxy.golang.org go list -m 'github.com/{{ .repo_owner }}/{{ .repo_name }}@{{ .tag }}'
 
   release:
     aliases: [r]
     desc: Creates a Git tag from '{{ .ver_path }}' and pushes to that ref.
     vars:
-      tag: 'v{{ .ver }}'
+      tag: "v{{ .ver }}"
     cmds:
       - task: create-git-tag
         vars:
-          tag: '{{ .tag }}'
+          tag: "{{ .tag }}"
       - task: push-tag-ref
         vars:
-          tag: '{{ .tag }}'
+          tag: "{{ .tag }}"
 
   # Task: Bump
   #
@@ -65,7 +64,7 @@ tasks:
     aliases: [b]
     desc: Bumps the provided segment of the semver string at {{ .ver_path }}.
     vars:
-      segment: '{{ if .s }}{{ .s }}{{ else }}patch{{ end }}'
+      segment: "{{ if .s }}{{ .s }}{{ else }}patch{{ end }}"
     cmd: ver_path='{{ .ver_path }}' segment='{{ .segment }}' .github/scripts/bump.sh
 
   # Task: Test
