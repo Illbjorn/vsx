@@ -2,7 +2,7 @@ package main
 
 import "github.com/illbjorn/echo"
 
-func assert(cond bool, msgAndArgs ...any) {
+func must(cond bool, msgAndArgs ...any) {
 	if !cond {
 		if len(msgAndArgs) == 0 {
 			echo.Fatalf("Assertion failed with no provided error!")

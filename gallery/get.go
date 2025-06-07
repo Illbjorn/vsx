@@ -1,4 +1,4 @@
-package main
+package gallery
 
 import (
 	"bytes"
@@ -6,32 +6,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 )
 
-func NewGallery(scheme string, host string) Gallery {
-	return Gallery{
-		BaseURL: &url.URL{
-			Scheme: scheme,
-			Host:   host,
-		},
-	}
-}
-
-type Gallery struct {
-	// BaseURL holds only the `scheme` and `host` properties of the `url.URL` and
-	// is intended for use in constructing runtime request URL strings via the
-	// `JoinPath()` method
-	BaseURL *url.URL
-
-	// Client is a standard HTTP client with a not-forever timeout applied
-	Client *http.Client
+type VoltronReader interface {
+	io.Reader
+	io.ReaderAt
+	io.ByteReader
+	io.RuneReader
+	io.Seeker
 }
 
 // GetExtension accepts a gallery publisherID, extension ID and version
 // returning an io.ReadCloser containing the binary payload of the requested
 // extension's VSIX package.
-func (self Gallery) GetExtension(ctx context.Context, publisherID, extensionID, version string) (*bytes.Reader, error) {
+func (self Gallery) GetExtension(
+	ctx context.Context,
+	publisherID, extensionID, version string,
+) (VoltronReader, error) {
 	const assetKindVSIXPackage = "Microsoft.VisualStudio.Services.VSIXPackage"
 	const pathFmtGetExtension = "_apis/public/gallery/publisher/" +
 		"%s" /* [1] Publisher ID      */ + "/extension/" +
@@ -44,11 +35,18 @@ func (self Gallery) GetExtension(ctx context.Context, publisherID, extensionID, 
 
 	// Init the HTTP request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
-	must(err == nil, "Failed to init GET request: %s.", err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init GET request: %w", err)
+	}
 
 	// Get the response
 	res, err := http.DefaultClient.Do(req)
-	must(err == nil, "Failed to execute GET request to [%s]: %s.", url.String(), err)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to execute GET request to [%s]: %w",
+			url.String(), err,
+		)
+	}
 	defer res.Body.Close()
 
 	// The response body is the VSIX package, we need this as an `io.ReaderAt`
@@ -57,18 +55,21 @@ func (self Gallery) GetExtension(ctx context.Context, publisherID, extensionID, 
 
 	// Read the response body
 	body, err := io.ReadAll(res.Body)
-	must(err == nil, "Failed to read extension response body: %s.", err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read extension response body: %w", err)
+	}
 
 	// Evaluate request failures
 	//
 	// We include the response body in the error message if the status code is
 	// >= 400 (hence this conditional being >1 step from the actual doing of the
 	// request)
-	must(
-		res.StatusCode < http.StatusBadRequest,
-		"Received received HTTP status code [%d] in GET request to [%s]: %s",
-		res.StatusCode, url.String(), string(body),
-	)
+	if res.StatusCode >= http.StatusBadRequest {
+		return nil, fmt.Errorf(
+			"received received HTTP status code [%d] in GET request to [%s]: %s",
+			res.StatusCode, url.String(), string(body),
+		)
+	}
 
 	// Wrap into `bytes.Reader` which implements `io.ReaderAt`
 	r := bytes.NewReader(body)
