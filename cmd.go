@@ -22,17 +22,11 @@ const (
 	cmdQuery    CMD = "query"
 	cmdInstall  CMD = "install"
 	cmdDownload CMD = "download"
+	cmdList     CMD = "list"
 	cmdExit     CMD = "exit"
 )
 
-const (
-	fileModeRWX = 0o700
-	fileModeRW  = 0o600
-	fileFlags   = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-)
-
 func RunCMD(g gallery.Gallery, cfg *Config, cmd argv.Command) error {
-	// Exec the command we received
 	switch cmd.Name {
 	case "":
 		return fmt.Errorf("received no command")
@@ -129,31 +123,10 @@ func RunCMD(g gallery.Gallery, cfg *Config, cmd argv.Command) error {
 		return errs
 
 	case cmdQuery:
-		query := strings.Join(cmd.Args, " ")
+		err := QueryExtensions(g, cmd.Args...)
+		if err != nil {
 
-		echo.Infof(
-			"  %25s  %-10s  %-10s  %-20s  %-20s",
-			"Name", "Version", "Validated?", "Publisher", "Last Updated",
-		)
-		echo.Infof(
-			"  %25s  %-10s  %-10s  %-20s  %-20s",
-			"----", "-------", "----------", "---------", "------------",
-		)
-		for meta, err := range g.Query(context.Background(), query) {
-			if err != nil {
-				return fmt.Errorf("failed extension query[%s]: %w", query, err)
-			}
-			// displayName  version  validated?  author  lastUpdated
-			echo.Infof(
-				"  %25s  %-10s  %-10t  %-20s  %-20s",
-				meta.DisplayName,
-				meta.Versions[0].Version,
-				meta.Versions[0].Flags == "validated",
-				meta.Publisher.DisplayName,
-				meta.LastUpdated.Format("2006-01-02 03:04"),
-			)
 		}
-
 		return nil
 	}
 }
@@ -228,7 +201,7 @@ func InstallExtension(g gallery.Gallery, extDir, extPublisher, extID, extVersion
 		}
 
 		// Get a writable stream to the on-disk file
-		dst, err := os.OpenFile(output, fileFlags, fileModeRW)
+		dst, err := os.OpenFile(output, fileFlagsOverwrite, fileModeRW)
 		if err != nil {
 			return fmt.Errorf("failed to open output file: %w", err)
 		}
@@ -260,11 +233,11 @@ func DownloadExtension(g gallery.Gallery, extPublisher, extID, extVersion, outpu
 
 	echo.Debugf(
 		"Writing file with file mode [%04o] and flags [%010b].", // The highest bit set for file flags is O_TRUNC @ 1 << 9
-		fileModeRW, fileFlags,
+		fileModeRW, fileFlagsOverwrite,
 	)
 
 	// Get a writable file stream to output the extension
-	file, err := os.OpenFile(outputPath, fileFlags, fileModeRW)
+	file, err := os.OpenFile(outputPath, fileFlagsOverwrite, fileModeRW)
 	if err != nil {
 		return fmt.Errorf("failed to get writable stream to output file: %w", err)
 	}
@@ -277,6 +250,44 @@ func DownloadExtension(g gallery.Gallery, extPublisher, extID, extVersion, outpu
 	}
 
 	echo.Debugf("Wrote [%d] bytes to file.", n)
+
+	return nil
+}
+
+var (
+	ErrQueryFailed = fmt.Errorf("failed extension query")
+)
+
+func QueryExtensions(g gallery.Gallery, terms ...string) error {
+	if len(terms) == 0 {
+		UsageError("No query terms received.")
+		return nil
+	}
+
+	query := strings.Join(terms, " ")
+
+	echo.Infof(
+		"  %25s  %-10s  %-10s  %-20s  %-20s",
+		"Name", "Version", "Validated?", "Publisher", "Last Updated",
+	)
+	echo.Infof(
+		"  %25s  %-10s  %-10s  %-20s  %-20s",
+		"----", "-------", "----------", "---------", "------------",
+	)
+	for meta, err := range g.Query(context.Background(), query) {
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrQueryFailed, err)
+		}
+		// displayName  version  validated?  author  lastUpdated
+		echo.Infof(
+			"  %25s  %-10s  %-10t  %-20s  %-20s",
+			meta.DisplayName,
+			meta.Versions[0].Version,
+			meta.Versions[0].Flags == "validated",
+			meta.Publisher.DisplayName,
+			meta.LastUpdated.Format("2006-01-02 03:04"),
+		)
+	}
 
 	return nil
 }
@@ -313,24 +324,24 @@ func Usage() string {
 
 >> Flags
 
-   --extension-dir,          -xd  The local file path to your 
+   --extension-dir,          -xd  The local file path to your
 	                                '.vscode/extensions' directory.
                                   Default:
                                     1. ~/.vscode-oss/extensions
                                     2. ~/.vscode/extensions
-   --gallery-scheme               The URI scheme for requests to the Gallery 
+   --gallery-scheme               The URI scheme for requests to the Gallery
 	                                ('HTTP' or 'HTTPS').
                                   Default: HTTPS
-   --gallery-host                 The hostname of the extension Gallery 
+   --gallery-host                 The hostname of the extension Gallery
 	                                (example: my.gallery.com).
-   --extension-publisher-id  -id  The extension publisher, as reflected in the 
+   --extension-publisher-id  -id  The extension publisher, as reflected in the
 	                                Gallery.
    --extension-version,      -v   The version of the extension to install
                                   Default: 'latest'
-	 --extension-id,           -id  The extension name, as reflected in the 
+	 --extension-id,           -id  The extension name, as reflected in the
 	                                Gallery.
-   --output,                 -o   If the command provided is 'download', 
-	                                '--output' is where the .vsix package will be 
+   --output,                 -o   If the command provided is 'download',
+	                                '--output' is where the .vsix package will be
 																	saved.
                                   Default: './[publisherID]-[extensionID].[version].vsix'
    --debug,                  -d   Enables additional logging for troubleshooting

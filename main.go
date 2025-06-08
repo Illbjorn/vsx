@@ -70,19 +70,9 @@ func main() {
 	// Init the Gallery client
 	g := gallery.New(cfg.GalleryScheme, cfg.GalleryHost)
 
-	if cmd.Name != "" {
-		// If we received a command, run it and exit
-		//
-		// Exec the command
-		err = RunCMD(g, cfg, cmd)
-		if err != nil {
-			echo.Fatalf("Failed [%s]: %w.", cmd, err)
-		}
-	} else {
-		// Otherwise, enter the REPL
-		err = EnterREPL(g, cfg)
-		if err != nil {
-			echo.Fatalf("Encountered REPL error: %s.", err)
-		}
+	// Exec the command
+	err = RunCMD(g, cfg, cmd)
+	if err != nil {
+		echo.Fatalf("Failed [%s]: %w.", cmd, err)
 	}
 }

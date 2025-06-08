@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,15 @@ import (
 
 const (
 	cfgFileName = "vsx.json"
+)
+
+var (
+	ErrConfigDir    = fmt.Errorf("failed to identify the user config dir")
+	ErrConfigPath   = fmt.Errorf("failed to retrieve the config file path")
+	ErrOpenConfig   = fmt.Errorf("failed to open config file")
+	ErrDecodeConfig = fmt.Errorf("failed to decode config file")
+	ErrEncodeConfig = fmt.Errorf("failed to encode config file")
+	ErrMkCfgDir     = fmt.Errorf("failed to create the configuration dir")
 )
 
 func LoadConfigFile() (*Config, error) {
@@ -19,20 +29,20 @@ func LoadConfigFile() (*Config, error) {
 	// Get the full config file path
 	path, err := cfgFile(cfgFileName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve the config file path: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrConfigPath, err)
 	}
 
 	// Get a readable stream to the config file
-	f, err := os.Open(path)
+	f, err := os.OpenFile(path, fileFlagsRead, fileModeRW)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open config file: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrOpenConfig, err)
 	}
 	defer f.Close()
 
 	// Attempt the decode
 	err = json.NewDecoder(f).Decode(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to JSON-decode configuration: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrDecodeConfig, err)
 	}
 
 	// For any values left blank, apply reasonable defaults
@@ -42,23 +52,35 @@ func LoadConfigFile() (*Config, error) {
 }
 
 func SaveConfigFile(cfg *Config) error {
-	// Get the full config file path
-	path, err := cfgFile(cfgFileName)
+	// Create the config directory if necessary
+	cfgDir, err := cfgRoot()
 	if err != nil {
-		return fmt.Errorf("failed to retrieve the config file path: %w", err)
+		return fmt.Errorf(
+			"%w: %w",
+			ErrConfigDir, err,
+		)
+	}
+	if err := os.MkdirAll(cfgDir, fileModeRWX); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("%w: %w", ErrMkCfgDir, err)
+	}
+
+	// Get the full config file path
+	cfgPath, err := cfgFile(cfgFileName)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrConfigPath, err)
 	}
 
 	// Get a writable stream to the config file
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileModeRW)
+	f, err := os.OpenFile(cfgPath, fileFlagsOverwrite, fileModeRW)
 	if err != nil {
-		return fmt.Errorf("failed to get writable stream to config file: %w", err)
+		return fmt.Errorf("%w: %w", ErrOpenConfig, err)
 	}
 	defer f.Close()
 
 	// Attempt the encode
 	err = json.NewEncoder(f).Encode(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to JSON-encode configuration: %w", err)
+		return fmt.Errorf("%w: %w", ErrEncodeConfig, err)
 	}
 
 	return nil
@@ -135,7 +157,7 @@ func applyConfigDefaults(cfg *Config) *Config {
 func cfgFile(name string) (string, error) {
 	root, err := cfgRoot()
 	if err != nil {
-		return "", fmt.Errorf("failed to get configuration root: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrConfigDir, err)
 	}
 	return filepath.Join(root, name), nil
 }
@@ -144,7 +166,7 @@ func cfgFile(name string) (string, error) {
 func cfgRoot() (string, error) {
 	cfgDir, err := os.UserConfigDir()
 	if err != nil {
-		return cfgDir, fmt.Errorf("failed to retrieve user config dir: %w", err)
+		return cfgDir, fmt.Errorf("%w: %w", ErrConfigDir, err)
 	}
 	return filepath.Join(cfgDir, app), nil
 }
