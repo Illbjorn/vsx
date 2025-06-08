@@ -149,10 +149,10 @@ func cfgRoot() (string, error) {
 	return filepath.Join(cfgDir, app), nil
 }
 
-// mergeInputs merges any values which can be considered persistent
+// MergeInputs merges any values which can be considered persistent
 // configuration from the command-line inputs into the configuration itself
-func mergeInputs(cfg *Config, flags map[string][]string) *Config {
-	if v, ok := flags[flagExtensionDir]; ok {
+func MergeInputs(cfg *Config, flags map[string][]string) *Config {
+	if v, ok := flags[flagExtDir]; ok {
 		cfg.ExtensionDir = v[0]
 	}
 

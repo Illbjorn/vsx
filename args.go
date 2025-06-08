@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 )
 
@@ -10,21 +9,23 @@ type Flag = string
 
 const (
 	// Flags
-	flagPublisher         Flag = "publisher"
-	flagExtensionID       Flag = "extension-id"
-	flagGalleryHost       Flag = "gallery-host"
-	flagGalleryScheme     Flag = "gallery-scheme"
-	flagExtensionDir      Flag = "extension-dir"
-	flagExtensionDirShort Flag = "xd"
-	flagOS                Flag = "os"
-	flagArch              Flag = "arch"
-	flagArchShort         Flag = "a"
-	flagVersion           Flag = "version"
-	flagVersionShort      Flag = "v"
-	flagOutput            Flag = "output"
-	flagOutputShort       Flag = "o"
-	flagDebug             Flag = "debug"
-	flagDebugShort        Flag = "d"
+	flagExtPub        Flag = "extension-publisher"
+	flagExtPubShort   Flag = "p"
+	flagExtID         Flag = "extension-id"
+	flagExtIDShort    Flag = "id"
+	flagExtVer        Flag = "extension-version"
+	flagExtVerShort   Flag = "v"
+	flagExtDir        Flag = "extension-dir"
+	flagExtDirShort   Flag = "xd"
+	flagGalleryHost   Flag = "gallery-host"
+	flagGalleryScheme Flag = "gallery-scheme"
+	flagOS            Flag = "os"
+	flagArch          Flag = "arch"
+	flagArchShort     Flag = "a"
+	flagOutput        Flag = "output"
+	flagOutputShort   Flag = "o"
+	flagDebug         Flag = "debug"
+	flagDebugShort    Flag = "d"
 )
 
 func ParseArgs() *Args {
@@ -39,8 +40,8 @@ func ParseArgs() *Args {
 	flag.StringVar(&args.GalleryScheme, flagGalleryScheme, "", "")
 
 	// --extension-dir, -xd
-	flag.StringVar(&args.ExtensionDir, flagExtensionDir, "", "")
-	flag.StringVar(&args.ExtensionDir, flagExtensionDirShort, "", "")
+	flag.StringVar(&args.ExtensionDir, flagExtDir, "", "")
+	flag.StringVar(&args.ExtensionDir, flagExtDirShort, "", "")
 
 	// --os
 	flag.StringVar(&args.OS, flagOS, "", "")
@@ -50,8 +51,8 @@ func ParseArgs() *Args {
 	flag.StringVar(&args.Arch, flagArchShort, "", "")
 
 	// --version, -v
-	flag.StringVar(&args.Version, flagVersion, "latest", "")
-	flag.StringVar(&args.Version, flagVersionShort, "latest", "")
+	flag.StringVar(&args.Version, flagExtVer, "latest", "")
+	flag.StringVar(&args.Version, flagExtVerShort, "latest", "")
 
 	// --output, -o
 	flag.StringVar(&args.Output, flagOutput, "", "")
@@ -115,20 +116,4 @@ type Args struct {
 	Version string
 
 	Debug bool
-}
-
-func applyArgDefaults(args *Args) *Args {
-	// If we didn't receive a path to save the vsix package to, default to
-	// `[publisher]-[extensionID]-[version].vsix` in the current working directory
-	if args.Command == cmdDownload && args.Output == "" {
-		args.Output = fmt.Sprintf("%s-%s-%s.vsix", args.Publisher, args.ExtensionID, args.Version)
-	}
-
-	// If we don't have an extension directory, try to locate one in the home
-	// directory
-	if args.Command == cmdInstall && args.ExtensionDir == "" {
-		args.ExtensionDir = ExtensionDir(args.Publisher, args.ExtensionID, args.Version)
-	}
-
-	return args
 }

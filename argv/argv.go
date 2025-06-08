@@ -13,18 +13,21 @@ type Command struct {
 	Args  []string
 }
 
-func ParseArgs(input string) (Command, error) {
-	if len(input) == 0 {
-		return Command{}, nil
+var empty = []string{}
+
+func (c Command) Flag(names ...string) []string {
+	for _, name := range names {
+		if v, ok := c.Flags[name]; ok {
+			return v
+		}
 	}
-	tokens := tokenize(input)
-	return parse(tokens)
+	return empty
 }
 
-func tokenize(input string) []string {
+func Tokenize(input string) []string {
 	i := -1
 	from := i + 1
-	tokens := make([]string, 0, 4)
+	tokens := make([]string, 0, 8)
 
 	capture := func() {
 		if i-from <= 0 {
@@ -83,7 +86,7 @@ func tokenize(input string) []string {
 	}
 }
 
-func parse(tokens []string) (Command, error) {
+func Parse(tokens []string) (Command, error) {
 	cmd := Command{
 		Flags: map[string][]string{},
 	}

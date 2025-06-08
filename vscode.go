@@ -9,18 +9,15 @@ import (
 	"github.com/illbjorn/echo"
 )
 
-func ExtensionDir(publisher, extensionID, version string) string {
+func ExtensionDir(extPub, extID, extVer string) (string, error) {
 	// Get the home directory path
 	home, err := os.UserHomeDir()
-	must(
-		err == nil,
-		"No extension directory was provided and we failed to locate the home "+
-			"directory: %s.",
-		err,
-	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	}
 
 	// Define the extension's subdirectory name (ex: `~/.vscode/extensions/[here]`)
-	extDirName := fmt.Sprintf("%s-%s-%s", publisher, extensionID, version)
+	extDirName := fmt.Sprintf("%s-%s-%s", extPub, extID, extVer)
 
 	// Look for a `.vscode-oss` or `.vscode` directory in the user's home path
 	var extDir string
@@ -42,11 +39,12 @@ func ExtensionDir(publisher, extensionID, version string) string {
 
 	// Create the extension dir if needed
 	err = os.MkdirAll(extDir, fileModeRWX)
-	must(
-		err == nil || errors.Is(err, os.ErrExist),
-		"Failed to create extension output directory [%s]: %s.",
-		extDir, err,
-	)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return "", fmt.Errorf(
+			"failed to create extension output directory[%s]: %w",
+			extDir, err,
+		)
+	}
 
-	return extDir
+	return extDir, nil
 }

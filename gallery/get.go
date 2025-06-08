@@ -14,11 +14,11 @@ type VoltronReader interface {
 	io.ByteReader
 	io.RuneReader
 	io.Seeker
+	Size() int64
 }
 
 // GetExtension accepts a gallery publisherID, extension ID and version
-// returning an io.ReadCloser containing the binary payload of the requested
-// extension's VSIX package.
+// returning a `VoltronReader` capable of being wrapped into a `zip.Reader`.
 func (self Gallery) GetExtension(
 	ctx context.Context,
 	publisherID, extensionID, version string,

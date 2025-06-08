@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-func NewGallery(scheme string, host string) Gallery {
+func New(scheme string, host string) Gallery {
 	return Gallery{
 		BaseURL: &url.URL{
 			Scheme: scheme,

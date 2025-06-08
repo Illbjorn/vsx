@@ -10,8 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/chzyer/readline"
 	"github.com/illbjorn/echo"
+	"github.com/illbjorn/vsx/argv"
+	"github.com/illbjorn/vsx/gallery"
 )
 
 type CMD = string
@@ -30,9 +31,12 @@ const (
 	fileFlags   = os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 )
 
-func RunCMD(g Gallery, cfg *Config, cmd string, flags map[string][]string, args []string) error {
+func RunCMD(g gallery.Gallery, cfg *Config, cmd argv.Command) error {
 	// Exec the command we received
-	switch cmd {
+	switch cmd.Name {
+	case "":
+		return fmt.Errorf("received no command")
+
 	default:
 		return fmt.Errorf("received unknown command [%s]", cmd)
 
@@ -41,19 +45,19 @@ func RunCMD(g Gallery, cfg *Config, cmd string, flags map[string][]string, args 
 
 		// Collect required inputs
 
-		publishers, ok := flags[flagPublisher]
+		publishers, ok := cmd.Flags[flagExtPub]
 		if !ok {
-			return errMissingInput(cmd, flagPublisher)
+			return errMissingInput(cmd.Name, flagExtPub)
 		}
 
-		extensionIDs, ok := flags[flagExtensionID]
+		extensionIDs, ok := cmd.Flags[flagExtID]
 		if !ok {
-			errMissingInput(cmd, flagExtensionID)
+			return errMissingInput(cmd.Name, flagExtID)
 		}
 
-		versions, ok := flags[flagVersion]
+		versions, ok := cmd.Flags[flagExtVer]
 		if !ok {
-			errMissingInput(cmd, flagVersion)
+			return errMissingInput(cmd.Name, flagExtVer)
 		}
 
 		// Install one or more extensions
@@ -85,27 +89,27 @@ func RunCMD(g Gallery, cfg *Config, cmd string, flags map[string][]string, args 
 
 		// Collect required inputs
 
-		publishers, ok := flags[flagPublisher]
+		publishers, ok := cmd.Flags[flagExtPub]
 		if !ok {
-			return errMissingInput(cmd, flagPublisher)
+			return errMissingInput(cmd.Name, flagExtPub)
 		}
 
-		extensionIDs, ok := flags[flagExtensionID]
+		extensionIDs, ok := cmd.Flags[flagExtID]
 		if !ok {
-			return errMissingInput(cmd, flagExtensionID)
+			return errMissingInput(cmd.Name, flagExtID)
 		}
 
-		versions, ok := flags[flagVersion]
+		versions, ok := cmd.Flags[flagExtVer]
 		if !ok {
-			return errMissingInput(cmd, flagVersion)
+			return errMissingInput(cmd.Name, flagExtVer)
 		}
 
 		// Install one or more extensions
 		//
 		// TODO: Currently this takes the shortest length of the three required
-		// values and only performs the install for that series of information. This
-		// should be updated to produce a clear error around which set was missing
-		// which bit of required information.
+		// values and only performs the install for that series of information.
+		// This should be updated to produce a clear error around which set was
+		// missing which bit of required information.
 		var errs error
 		for i := range min(len(publishers), len(extensionIDs), len(versions)) {
 			err := DownloadExtension(
@@ -123,6 +127,34 @@ func RunCMD(g Gallery, cfg *Config, cmd string, flags map[string][]string, args 
 			}
 		}
 		return errs
+
+	case cmdQuery:
+		query := strings.Join(cmd.Args, " ")
+
+		echo.Infof(
+			"  %25s  %-10s  %-10s  %-20s  %-20s",
+			"Name", "Version", "Validated?", "Publisher", "Last Updated",
+		)
+		echo.Infof(
+			"  %25s  %-10s  %-10s  %-20s  %-20s",
+			"----", "-------", "----------", "---------", "------------",
+		)
+		for meta, err := range g.Query(context.Background(), query) {
+			if err != nil {
+				return fmt.Errorf("failed extension query[%s]: %w", query, err)
+			}
+			// displayName  version  validated?  author  lastUpdated
+			echo.Infof(
+				"  %25s  %-10s  %-10t  %-20s  %-20s",
+				meta.DisplayName,
+				meta.Versions[0].Version,
+				meta.Versions[0].Flags == "validated",
+				meta.Publisher.DisplayName,
+				meta.LastUpdated.Format("2006-01-02 03:04"),
+			)
+		}
+
+		return nil
 	}
 }
 
@@ -133,77 +165,26 @@ func errMissingInput(cmd string, input string) error {
 	)
 }
 
-var prefix = readline.PcItem
-var completer = readline.NewPrefixCompleter(
-	// query
-	prefix("query", prefix("--name")),
-	// download
-	prefix("download", prefix("--name")),
-	// install
-	prefix("install", prefix("--name")),
-	// backup
-	prefix("backup", prefix("--to")),
-)
-
-func EnterREPL(g Gallery, cfg *Config) {
-	// Init the readline instance
-	l, err := readline.NewEx(&readline.Config{
-		Prompt:       "\033[31m»\033[0m ",
-		HistoryFile:  cfg.HistFilePath,
-		AutoComplete: completer,
-	})
-	must(err == nil, "Failed to init readline instance: %s.", err)
-
-	for {
-		// Wait for a command...
-		v, err := l.Readline()
+func InstallExtension(g gallery.Gallery, extDir, extPublisher, extID, extVersion string) error {
+	// If we don't have an extension directory, try to locate one in the home
+	// directory
+	if extDir == "" {
+		var err error
+		extDir, err = ExtensionDir(
+			extPublisher,
+			extID,
+			extVersion,
+		)
 		if err != nil {
-			if errors.Is(err, readline.ErrInterrupt) {
-				return
-			}
-			echo.Fatalf("Readline failed: %s.", err)
-		}
-
-		// Tokenize the command
-		tokens := tokenizeCMD(v)
-		if len(tokens) == 0 {
-			continue
-		}
-
-		// Parse the tokenize command
-		cmd, flags, args := parseCMD(tokens)
-		_ = args
-
-		// Exec the command as necessary
-		switch cmd {
-		default:
-			echo.Errorf("Received missing or unknown command [%s].", cmd)
-			continue
-
-		case cmdDownload:
-			for _, toDownload := range flags["name"] {
-				echo.Infof("Downloading extension [%s].", toDownload)
-			}
-
-		case cmdInstall:
-			for _, toInstall := range flags["name"] {
-				echo.Infof("Installing extension [%s].", toInstall)
-				// TODO: Figure the fuck out how I'm going to handle piping these fields
-				// (publisher, extensionID, version, extensionDir) all over god's green
-				// fucking earth because this API is fucking dogshit.
-			}
-
-		case cmdQuery:
-
-		case cmdExit:
-			return
+			echo.Fatalf(
+				"failed to identify a VSCode extension directory: %w",
+				err,
+			)
 		}
 	}
-}
 
-func InstallExtension(g Gallery, publisher, extensionID, version, extensionDir string) error {
 	// Get the `.vsix` file stream
-	stream, err := g.GetExtension(context.Background(), publisher, extensionID, version)
+	stream, err := g.GetExtension(context.Background(), extPublisher, extID, extVersion)
 	if err != nil {
 		return fmt.Errorf("failed to fetch gallery extension: %w", err)
 	}
@@ -231,7 +212,7 @@ func InstallExtension(g Gallery, publisher, extensionID, version, extensionDir s
 		name := zipFile.Name[i+1:]
 
 		// Define the output path
-		output := filepath.Join(extensionDir, name)
+		output := filepath.Join(extDir, name)
 		echo.Debugf("Outputting file [%s] to [%s].", name, output)
 
 		// Create any requisite directories
@@ -262,17 +243,17 @@ func InstallExtension(g Gallery, publisher, extensionID, version, extensionDir s
 
 	echo.Infof(
 		"[%s-%s] @ [%s] install complete to [%s].",
-		publisher, extensionID, version, extensionDir,
+		extPublisher, extID, extVersion, extDir,
 	)
 
 	return nil
 }
 
-func DownloadExtension(g Gallery, publisher, extensionID, version, output string) error {
-	echo.Infof("Fetching extension [%s-%s] @ [%s].", publisher, extensionID, version)
+func DownloadExtension(g gallery.Gallery, extPublisher, extID, extVersion, outputPath string) error {
+	echo.Infof("Fetching extension [%s-%s] @ [%s].", extPublisher, extID, extVersion)
 
 	// Fetch the extension
-	stream, err := g.GetExtension(context.Background(), publisher, extensionID, version)
+	stream, err := g.GetExtension(context.Background(), extPublisher, extID, extVersion)
 	if err != nil {
 		return fmt.Errorf("failed to fetch extension: %w", err)
 	}
@@ -283,7 +264,7 @@ func DownloadExtension(g Gallery, publisher, extensionID, version, output string
 	)
 
 	// Get a writable file stream to output the extension
-	file, err := os.OpenFile(output, fileFlags, fileModeRW)
+	file, err := os.OpenFile(outputPath, fileFlags, fileModeRW)
 	if err != nil {
 		return fmt.Errorf("failed to get writable stream to output file: %w", err)
 	}
@@ -328,26 +309,32 @@ func Usage() string {
 
    install   Download an extension and install it.
    download  Download the extension and output the .vsix file to disk.
+	 query     Query the extension catalog.
 
 >> Flags
 
-   --extension-dir, -xd  The local file path to your '.vscode/extensions'
-                         directory.
-                         Default:
-                           1. ~/.vscode-oss/extensions
-                           2. ~/.vscode/extensions
-   --gallery-scheme      The URI scheme for requests to the Gallery ('HTTP' or
-                         'HTTPS').
-                         Default: HTTPS
-   --gallery-host        The hostname of the extension Gallery (example:
-                         my.gallery.com).
-   --version,       -v   The version of the extension to install
-                         Default: 'latest'
-   --output,        -o   If the command provided is 'download', '--output' is
-                         where the .vsix package will be saved.
-                         Default: './[publisherID]-[extensionID].[version].vsix'
-   --debug,         -d   Enables additional logging for troubleshooting
-                         purposes.
+   --extension-dir,          -xd  The local file path to your 
+	                                '.vscode/extensions' directory.
+                                  Default:
+                                    1. ~/.vscode-oss/extensions
+                                    2. ~/.vscode/extensions
+   --gallery-scheme               The URI scheme for requests to the Gallery 
+	                                ('HTTP' or 'HTTPS').
+                                  Default: HTTPS
+   --gallery-host                 The hostname of the extension Gallery 
+	                                (example: my.gallery.com).
+   --extension-publisher-id  -id  The extension publisher, as reflected in the 
+	                                Gallery.
+   --extension-version,      -v   The version of the extension to install
+                                  Default: 'latest'
+	 --extension-id,           -id  The extension name, as reflected in the 
+	                                Gallery.
+   --output,                 -o   If the command provided is 'download', 
+	                                '--output' is where the .vsix package will be 
+																	saved.
+                                  Default: './[publisherID]-[extensionID].[version].vsix'
+   --debug,                  -d   Enables additional logging for troubleshooting
+                                  purposes.
 
 >> Environment Variables
 

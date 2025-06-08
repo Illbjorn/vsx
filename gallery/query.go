@@ -17,21 +17,24 @@ func (self Gallery) Query(ctx context.Context, term string) iter.Seq2[ExtensionM
 		// Construct the URL
 		url := self.BaseURL.JoinPath(path).String()
 
+		// Construct the extension query request
+		queryRequest := defaultQueryRequest()
+
+		// Append the filter
+		//
+		// Seriously, this API design is.. Rough to work with.
+		queryRequest.Filters[0].Criteria = append(queryRequest.Filters[0].Criteria, QueryFilterCriteria{
+			FilterType: QueryFilterTypeTerm,
+			Value:      term,
+		})
+
 		nextToken := ""
 		for {
-			// Construct the extension query request
-			queryRequest := defaultQueryRequest
 			// Insert the paging token, if we have one from a previous iteration
 			if nextToken != "" {
 				queryRequest.Filters[0].PagingToken = nextToken
 			}
-			// Append the filter
-			//
-			// Seriously, this API design is.. Rough to work with.
-			queryRequest.Filters[0].Criteria = append(queryRequest.Filters[0].Criteria, QueryFilterCriteria{
-				FilterType: QueryFilterTypeTerm,
-				Value:      term,
-			})
+
 			// JSON-encode the query request
 			data, err := json.Marshal(queryRequest)
 			if err != nil {
@@ -118,10 +121,10 @@ func (self Gallery) Query(ctx context.Context, term string) iter.Seq2[ExtensionM
 	}
 }
 
-var (
+func defaultQueryRequest() QueryRequest {
 	// Just add a defaultQueryRequest.Filters[0].Criteria of type Term containing
 	// a value of the search term
-	defaultQueryRequest = QueryRequest{
+	return QueryRequest{
 		AssetTypes: []AssetType{
 			Branding,
 			Default,
@@ -148,7 +151,7 @@ var (
 		},
 		Flags: QueryRequestFlagsDefault,
 	}
-)
+}
 
 type AssetType = string
 
