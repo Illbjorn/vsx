@@ -2,131 +2,118 @@ package main
 
 import (
 	"flag"
-	"os"
+	"strings"
 )
 
-type Args struct {
-	ExtensionDir  string
-	GalleryScheme string
-	GalleryHost   string
-	OS            string
-	Arch          string
-	Version       string
-	Output        string
-	Debug         bool
-	Positional    []string
-}
+type Flag = string
 
-func ParseArgs() Args {
-	var args Args
+const (
+	// Flags
+	flagExtPub        Flag = "extension-publisher"
+	flagExtPubShort   Flag = "p"
+	flagExtID         Flag = "extension-id"
+	flagExtIDShort    Flag = "id"
+	flagExtVer        Flag = "extension-version"
+	flagExtVerShort   Flag = "v"
+	flagExtDir        Flag = "extension-dir"
+	flagExtDirShort   Flag = "xd"
+	flagGalleryHost   Flag = "gallery-host"
+	flagGalleryScheme Flag = "gallery-scheme"
+	flagOS            Flag = "os"
+	flagArch          Flag = "arch"
+	flagArchShort     Flag = "a"
+	flagOutput        Flag = "output"
+	flagOutputShort   Flag = "o"
+	flagDebug         Flag = "debug"
+	flagDebugShort    Flag = "d"
+)
+
+func ParseArgs() *Args {
+	args := new(Args)
 
 	// Define flags
 	//
 	// --gallery-host
-	const envGalleryHost = "VSX_GALLERY_HOST"
-	flag.StringVar(&args.GalleryHost, "gallery-host", os.Getenv(envGalleryHost), "")
+	flag.StringVar(&args.GalleryHost, flagGalleryHost, "", "")
 
 	// --gallery-scheme
-	const envGalleryScheme = "VSX_GALLERY_SCHEME"
-	flag.StringVar(&args.GalleryScheme, "gallery-scheme", os.Getenv(envGalleryScheme), "")
+	flag.StringVar(&args.GalleryScheme, flagGalleryScheme, "", "")
 
 	// --extension-dir, -xd
-	const envExtensionDir = "VSX_EXTENSION_DIR"
-	flag.StringVar(&args.ExtensionDir, "extension-dir", os.Getenv(envExtensionDir), "")
-	flag.StringVar(&args.ExtensionDir, "xd", os.Getenv(envExtensionDir), "")
+	flag.StringVar(&args.ExtensionDir, flagExtDir, "", "")
+	flag.StringVar(&args.ExtensionDir, flagExtDirShort, "", "")
 
 	// --os
-	const envOS = "VSX_OS"
-	flag.StringVar(&args.OS, "os", os.Getenv(envOS), "")
+	flag.StringVar(&args.OS, flagOS, "", "")
 
 	// --arch, -a
-	const envArch = "VSX_ARCH"
-	flag.StringVar(&args.Arch, "arch", os.Getenv(envArch), "")
-	flag.StringVar(&args.Arch, "a", os.Getenv(envArch), "")
+	flag.StringVar(&args.Arch, flagArch, "", "")
+	flag.StringVar(&args.Arch, flagArchShort, "", "")
 
 	// --version, -v
-	flag.StringVar(&args.Version, "version", "", "")
-	flag.StringVar(&args.Version, "v", "", "")
+	flag.StringVar(&args.Version, flagExtVer, "latest", "")
+	flag.StringVar(&args.Version, flagExtVerShort, "latest", "")
 
 	// --output, -o
-	flag.StringVar(&args.Output, "output", "", "")
-	flag.StringVar(&args.Output, "o", "", "")
+	flag.StringVar(&args.Output, flagOutput, "", "")
+	flag.StringVar(&args.Output, flagOutputShort, "", "")
 
 	// --debug, -d
-	flag.BoolVar(&args.Debug, "debug", false, "")
-	flag.BoolVar(&args.Debug, "d", false, "")
+	flag.BoolVar(&args.Debug, flagDebug, false, "")
+	flag.BoolVar(&args.Debug, flagDebugShort, false, "")
 
 	// Parse
 	flag.Parse()
-	args.Positional = flag.Args()
-	assert(len(args.Positional) >= 2, Usage())
+	positionalArgs := flag.Args()
+
+	// Assign the command
+	if len(positionalArgs) > 0 {
+		args.Command = strings.ToLower(positionalArgs[0])
+		// Capture the publisher and extension IDs
+		//
+		// These are provided like `[publisherID]-[extensionID]` as the last
+		// positional arg
+		identifier := positionalArgs[len(positionalArgs)-1]
+		args.Publisher, args.ExtensionID, _ = strings.Cut(identifier, ".")
+	}
 
 	return args
 }
 
-func Usage() string {
-	return `
->> Overview
+type Args struct {
+	// Command is the selected subcommand (ex: `install`, `download`)
+	Command string
 
-   VSX is a simple (in-progress) command-line VSCode extension manager.
+	// Publisher is the VSIX extension publisher
+	Publisher string
 
-	 To get off the ground quickly, refer to the quickstart:
-	 https://github.com/illbjorn/vsx
+	// ExtensionID is the unique extension identifier string
+	ExtensionID string
 
->> Usage
+	// ExtensionDir is utilized by the `install` subcommand and refers to the
+	// `.vscode` or `.vscode-oss` extensions directory
+	ExtensionDir string
 
-   vsx [FLAGS] [COMMAND] [EXTENSION]
+	// Output is utilized by the `download` subcommand and refers to the full
+	// file path to which the extension `vsix` file will be downloaded.
+	Output string
 
-   * NOTE: '[EXTENSION]' is the '[publisherID-extensionID]' component of a 
-   * Gallery item. These values can be found in the pre-populated 'ext install' 
-   * command on a Gallery extension's page or from the 'itemName' query 
-   * parameter when browsing the marketplace.
-   * Example: items?itemName=modular-mojotools.vscode-mojo
-   *                         ^---------------------------^
+	// GalleryScheme pairs with GalleryHost and refers to the URI scheme for
+	// use in communication with the supplied extension gallery
+	GalleryScheme string
 
->> Commands
+	// GalleryHost pairs with GalleryScheme and refers to the hostname of a given
+	// extension gallery
+	GalleryHost string
 
-   install   Download an extension and install it.
-   download  Download the extension and output the .vsix file to disk.
+	// OS is the targeted extension operating system
+	OS string
 
->> Flags
+	// Arch is the targeted extension architecture
+	Arch string
 
-   --extension-dir, -xd  The local file path to your '.vscode/extensions' 
-                         directory.
-                         Default: 
-                           1. ~/.vscode-oss/extensions
-                           2. ~/.vscode/extensions
-   --gallery-scheme      The URI scheme for requests to the Gallery ('HTTP' or 
-                         'HTTPS').
-                         Default: HTTPS
-   --gallery-host        The hostname of the extension Gallery (example: 
-                         my.gallery.com).
-   --version,       -v   The version of the extension to install
-                         Default: 'latest'
-   --output,        -o   If the command provided is 'download', '--output' is 
-                         where the .vsix package will be saved.
-                         Default: './[publisherID]-[extensionID].[version].vsix'
-   --debug,         -d   Enables additional logging for troubleshooting 
-                         purposes.
+	// Version is the desired extension version
+	Version string
 
->> Environment Variables
-
-   To avoid giant run-on commands, VSX supports environment variables for the 
-   primary values required by every command.
-
-   * NOTE: Provided flag values will supersede values identified in the 
-   * environment!
-
-   VSX_GALLERY_HOST    The hostname of the extension Gallery (example: 
-                       my.gallery.com).
-                       Flag: --gallery-host
-
-   VSX_GALLERY_SCHEME  The URI scheme for requests to the Gallery ('HTTP' or 
-                       'HTTPS').
-                       Flag: --gallery-scheme
-
-   VSX_EXTENSION_DIR   The local file path to your '.vscode/extensions' 
-                       directory.
-                       Flag: --extension-dir, -xd
-`
+	Debug bool
 }
