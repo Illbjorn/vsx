@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/illbjorn/argv"
 )
 
 const (
@@ -173,24 +175,24 @@ func cfgRoot() (string, error) {
 
 // MergeInputs merges any values which can be considered persistent
 // configuration from the command-line inputs into the configuration itself
-func MergeInputs(cfg *Config, flags map[string][]string) *Config {
-	if v, ok := flags[flagExtDir]; ok {
+func MergeInputs(cfg *Config, cmd argv.Command) *Config {
+	if v, ok := cmd.Flag(flagExtDir, flagExtDirShort); ok {
 		cfg.ExtensionDir = v[0]
 	}
 
-	if v, ok := flags[flagGalleryScheme]; ok {
+	if v, ok := cmd.Flag(flagGalleryScheme); ok {
 		cfg.GalleryScheme = v[0]
 	}
 
-	if v, ok := flags[flagGalleryHost]; ok {
+	if v, ok := cmd.Flag(flagGalleryHost); ok {
 		cfg.GalleryHost = v[0]
 	}
 
-	if v, ok := flags[flagOS]; ok {
+	if v, ok := cmd.Flag(flagOS); ok {
 		cfg.OS = v[0]
 	}
 
-	if v, ok := flags[flagArch]; ok {
+	if v, ok := cmd.Flag(flagArch); ok {
 		cfg.Arch = v[0]
 	}
 

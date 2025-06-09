@@ -65,6 +65,10 @@ func (self Gallery) GetExtension(
 	// >= 400 (hence this conditional being >1 step from the actual doing of the
 	// request)
 	if res.StatusCode >= http.StatusBadRequest {
+		// If the response body is large, truncate it
+		if len(body) > 100 {
+			body = append(body[:97], '.', '.', '.')
+		}
 		return nil, fmt.Errorf(
 			"received received HTTP status code [%d] in GET request to [%s]: %s",
 			res.StatusCode, url.String(), string(body),

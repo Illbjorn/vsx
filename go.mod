@@ -1,10 +1,9 @@
 module github.com/illbjorn/vsx
 
-go 1.24.3
+go 1.24.4
 
 require (
-	github.com/chzyer/readline v1.5.1
+	github.com/illbjorn/argv v0.2.0
 	github.com/illbjorn/echo v0.7.4
+	github.com/illbjorn/zest v0.1.1
 )
-
-require golang.org/x/sys v0.12.0 // indirect

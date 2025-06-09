@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
+	"github.com/illbjorn/argv"
 	"github.com/illbjorn/echo"
-	"github.com/illbjorn/vsx/argv"
 	"github.com/illbjorn/vsx/gallery"
 )
 
@@ -12,24 +12,18 @@ const (
 	app = "vsx"
 )
 
-// TODO:
-//
-// - ~~Implement `argv` and `gallery` packages~~
-// 	 - ~~Retire `main` package `tokenizeCMD`, `parseCMD` and `NewGallery`
-//     functionality~~
-// - ~~Consolidate `argDefaults` into a more agnostic interface~~
-// - Implement `query` subcommand
-// - Implement signature verification of downloaded VSIX files (PKCS #1 / v1.5)
-// - Implement `update` subcommand
-// - Implement `backup` subcommand
-// - Implement timeout support (init contexts, pass with timeout to CMD
-//   handlers)
+// TODO: Implement `config` subcommand to manually persist configuration values
+// TODO: Implement signature verification of downloaded VSIX files (PKCS #1 / v1.5)
+// TODO: Implement `update` subcommand
+// TODO: Implement `backup` and `restore` subcommands
+// TODO: Implement timeout support (init contexts, pass with timeout to CMD handlers)
+// TODO: Implement `list` subcommand
 
 func main() {
 	// Parse command-line args
 	//
 	// Some of these values (ex: `extension-dir`) can be persistent configuration
-	// items. Considering this, further down we'll merge those values into the
+	// items. Considering this, further down we'll merge these values into the
 	// `Config` instance and persist them.
 	cmd, err := argv.Parse(os.Args[1:])
 	if err != nil {
@@ -37,7 +31,9 @@ func main() {
 	}
 
 	// Apply debug configuration if the [`--debug`, `-d`] flag was provided
-	if _, ok := cmd.Flags[flagDebug]; ok {
+	if _, ok := cmd.Flag(flagDebug, flagDebugShort); !ok {
+		echo.SetFlags(echo.WithLevel, echo.WithColor)
+	} else {
 		echo.SetLevel(echo.LevelDebug)
 		echo.SetFlags(
 			echo.WithCallerFile,
@@ -59,7 +55,7 @@ func main() {
 		cfg = new(Config)
 	}
 	cfg = LoadConfigEnv(cfg)
-	cfg = MergeInputs(cfg, cmd.Flags)
+	cfg = MergeInputs(cfg, cmd)
 
 	// Save the config now to reflect any command-line updates
 	err = SaveConfigFile(cfg)
@@ -71,8 +67,8 @@ func main() {
 	g := gallery.New(cfg.GalleryScheme, cfg.GalleryHost)
 
 	// Exec the command
-	err = RunCMD(g, cfg, cmd)
+	err = Run(g, cfg, cmd)
 	if err != nil {
-		echo.Fatalf("Failed [%s]: %w.", cmd, err)
+		echo.Fatalf("ERROR: %s.", err)
 	}
 }
