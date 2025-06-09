@@ -37,7 +37,7 @@ vsx install modular-mojotools.vscode-mojo
 ## Download a Package
 
 ```bash
-vsx -o mojo.vsix download modular-mojotools.vscode-mojo
+vsx download -o mojo.vsix modular-mojotools.vscode-mojo
 ```
 
 # Usage
@@ -45,74 +45,81 @@ vsx -o mojo.vsix download modular-mojotools.vscode-mojo
 ```bash
 >> Overview
 
-   VSX is a simple (in-progress) command-line VSCode extension manager.
+  VSX is a simple (in-progress) command-line VSCode extension manager.
 
-	 To get off the ground quickly, refer to the quickstart:
-	 https://github.com/illbjorn/vsx
+  To get off the ground quickly, refer to the quickstart:
+  https://github.com/illbjorn/vsx
 
 >> Usage
 
-   vsx [FLAGS] [COMMAND] [EXTENSION]
-
-   * NOTE: '[EXTENSION]' is the '[publisherID-extensionID]' component of a 
-   * Gallery item. These values can be found in the pre-populated 'ext install' 
-   * command on a Gallery extension's page or from the 'itemName' query 
-   * parameter when browsing the marketplace.
-   * Example: items?itemName=modular-mojotools.vscode-mojo
-   *                         ^---------------------------^
+  vsx [install [EXTENSION] | download [EXTENSION] | query [TERMS]] [FLAGS] 
+                ┗━━━┳━━━┛              ┗━━━┳━━━┛
+                    ┃                      ┃
+  ┏━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━┛
+  ┃ Example
+  ┣━
+  ┃ usernamehw.errorlens@3.26.0
+  ┣━
+  ┃ usernamehw -> Extension Publisher
+  ┃  errorlens -> Extension ID
+  ┃    @3.26.0 -> Optional, allows specific version extension installation
+  ┃               If not provided, a default of 'latest' will be used
+  ┗━
 
 >> Commands
 
    install   Download an extension and install it.
    download  Download the extension and output the .vsix file to disk.
+   query     Query the extension catalog.
 
 >> Flags
 
-   --extension-dir, -xd  The local file path to your '.vscode/extensions' 
-                         directory.
-                         Default: 
-                           1. ~/.vscode-oss/extensions
-                           2. ~/.vscode/extensions
-   --gallery-scheme      The URI scheme for requests to the Gallery ('HTTP' or 
-                         'HTTPS').
-                         Default: HTTPS
-   --gallery-host        The hostname of the extension Gallery (example: 
-                         my.gallery.com).
-   --version,       -v   The version of the extension to install
-                         Default: 'latest'
-   --output,        -o   If the command provided is 'download', '--output' is 
-                         where the .vsix package will be saved.
-                         Default: './[publisherID]-[extensionID].[version].vsix'
-   --debug,         -d   Enables additional logging for troubleshooting 
-                         purposes.
+  --extension-dir, -xd  The local file path to your
+                        '.vscode/extensions' directory.
+                        Default:
+                        1. ~/.vscode-oss/extensions
+                        2. ~/.vscode/extensions
+  --gallery-scheme      The URI scheme for requests to the Gallery
+                        ('HTTP' or 'HTTPS').
+                        Default: HTTPS
+  --gallery-host        The hostname of the extension Gallery
+                        (example: my.gallery.com).
+  --output,        -o   If the command provided is 'download', '--output' is 
+                        where the .vsix package will be saved. 
+                        Default: './[publisherID]-[extensionID].[version].vsix'
+  --debug,         -d   Enables additional logging for troubleshooting
+                        purposes.
 
 >> Environment Variables
 
-   To avoid giant run-on commands, VSX supports environment variables for the 
-   primary values required by every command.
+  To avoid giant run-on commands, VSX supports environment variables for the
+  primary values required by every command.
 
-   * NOTE: Provided flag values will supersede values identified in the 
-   * environment!
+  ┏━
+  ┃ NOTE: Provided flag values will supersede values identified in the
+  ┃ environment!
+  ┗━
 
-   VSX_GALLERY_HOST    The hostname of the extension Gallery (example: 
-                       my.gallery.com).
-                       Flag: --gallery-host
+  VSX_GALLERY_HOST    The hostname of the extension Gallery (example:
+                      my.gallery.com).
+                      Flag: --gallery-host
 
-   VSX_GALLERY_SCHEME  The URI scheme for requests to the Gallery ('HTTP' or 
-                       'HTTPS').
-                       Flag: --gallery-scheme
+  VSX_GALLERY_SCHEME  The URI scheme for requests to the Gallery ('HTTP' or
+                      'HTTPS').
+                      Flag: --gallery-scheme
 
-   VSX_EXTENSION_DIR   The local file path to your '.vscode/extensions' 
-                       directory.
-                       Flag: --extension-dir, -xd
+  VSX_EXTENSION_DIR   The local file path to your '.vscode/extensions'
+                      directory.
+                      Flag: --extension-dir, -xd
 ```
 
 # TODO
 
 ```bash
-- Implement timeout support (init contexts, pass with timeout to CMD
-  handlers)
-- Implement signature verification of downloaded VSIX files (PKCS #1 / v1.5)
-- Implement `backup` subcommand
-- Implement `update` subcommand
+- TODO: Implement signature verification of downloaded VSIX files (PKCS #1 / v1.5)
+- TODO: Implement `config` subcommand to manually persist configuration values
+- TODO: Implement `update` subcommand
+- TODO: Implement `backup` and `restore` subcommands
+- TODO: Implement `list` subcommand
+- TODO: Implement timeout support (init contexts, pass with timeout to CMD handlers)
 ```
